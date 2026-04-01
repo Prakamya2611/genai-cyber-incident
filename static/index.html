@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <title>AI SOC Dashboard</title>
+  <style>
+    body {
+      font-family: 'Segoe UI';
+      background: #0f172a;
+      color: white;
+      padding: 20px;
+    }
+
+```
+h1 {
+  text-align: center;
+}
+
+.card {
+  background: #1e293b;
+  padding: 20px;
+  border-radius: 12px;
+  margin-top: 20px;
+}
+
+textarea {
+  width: 100%;
+  height: 120px;
+  border-radius: 8px;
+  padding: 10px;
+  background: #020617;
+  color: white;
+  border: none;
+}
+
+button {
+  padding: 10px 20px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+.high { color: red; }
+.medium { color: orange; }
+.low { color: lightgreen; }
+```
+
+  </style>
+</head>
+
+<body>
+
+<h1>🚨 AI SOC Incident Dashboard</h1>
+
+<div class="card">
+  <h3>📂 Upload JSON File</h3>
+  <input type="file" onchange="loadFile(event)">
+</div>
+
+<div class="card">
+  <h3>📋 Or Paste Logs</h3>
+  <textarea id="logs"></textarea>
+</div>
+
+<button onclick="analyze()">⚡ Analyze</button> <button onclick="downloadPDF()">📄 Download PDF</button>
+
+<div id="result" class="card"></div>
+
+<script>
+let currentLogs = null;
+
+function loadFile(event) {
+  const reader = new FileReader();
+  reader.onload = function() {
+    document.getElementById("logs").value = reader.result;
+  };
+  reader.readAsText(event.target.files[0]);
+}
+
+async function analyze() {
+  const logs = JSON.parse(document.getElementById("logs").value);
+  currentLogs = logs;
+
+  document.getElementById("result").innerHTML = "⏳ Analyzing...";
+
+  const res = await fetch("/analyze", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(logs)
+  });
+
+  const data = await res.json();
+  let cls = data.severity.toLowerCase();
+
+  document.getElementById("result").innerHTML = `
+    <h3>📊 Report</h3>
+    <p><b>Type:</b> ${data.incident_type}</p>
+    <p><b>Severity:</b> <span class="${cls}">${data.severity}</span></p>
+    <p>${data.report}</p>
+  `;
+}
+
+function downloadPDF() {
+  if (!currentLogs) {
+    alert("Run analysis first!");
+    return;
+  }
+
+  fetch("/export/pdf", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(currentLogs)
+  })
+  .then(res => res.blob())
+  .then(blob => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "incident_report.pdf";
+    a.click();
+  });
+}
+</script>
+
+</body>
+</html>
